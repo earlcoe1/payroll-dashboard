@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Download Logs</title>
+</head>
+<body>
+    <h1>Download Logs</h1>
+    <p><a href="{{ url_for('dashboard') }}">← Back to Dashboard</a></p>
+
+    {% if logs %}
+        <ul>
+        {% for log in logs %}
+            <li>{{ log }}</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No downloads logged yet.</p>
+    {% endif %}
+</body>
+</html>

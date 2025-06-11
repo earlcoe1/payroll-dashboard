@@ -1,0 +1,15 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Environment file
+.env
+
+# IDE and OS files
+.vscode/
+*.DS_Store
+Thumbs.db
+
+# Optional: ignore logs/uploads if not versioning them
+uploads/
+download_logs.txt
