@@ -8,18 +8,23 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.getenv('FLASK_SECRET_KEY')
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-# Connect to MySQL database
-db = mysql.connector.connect(
-    host=os.getenv('DB_HOST'),
-    user=os.getenv('DB_USER'),
-    password=os.getenv('DB_PASSWORD'),
-    database=os.getenv('DB_NAME')
-)
-cursor = db.cursor()
+# Connect to MySQL
+try:
+    db = mysql.connector.connect(
+        host=os.getenv("DB_HOST"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME")
+    )
+    cursor = db.cursor()
+    print("✅ MySQL connection successful")
+except Exception as e:
+    print(f"❌ MySQL connection failed: {e}")
+    exit()
 
-# Home route (optional: can redirect or show dashboard)
+# Redirect / to /add_employee
 @app.route('/')
 def home():
     return redirect('/add_employee')
@@ -49,6 +54,5 @@ def add_employee():
 
     return render_template('add_employee.html')
 
-# Run the Flask app
 if __name__ == '__main__':
     app.run(debug=True)

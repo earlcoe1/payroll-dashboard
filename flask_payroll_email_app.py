@@ -1,4 +1,5 @@
 
+from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 import os
@@ -87,8 +88,25 @@ def upload_file():
 
         flash('Invalid file type.')
         return redirect(request.url)
-    return render_template('upload.html')  # Assumes you have upload.html template
+    return render_template("upload.html")  # Assumes you have upload.html template
 
 if __name__ == '__main__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.run(debug=True)
+
+from flask import Flask, render_template, request, redirect, flash
+import os
+
+@app.route('/dashboard')
+def dashboard():
+    upload_folder = 'uploads'
+    payroll_files = []
+
+    for filename in os.listdir(upload_folder):
+        if filename.endswith('.pdf'):
+            file_path = os.path.join(upload_folder, filename)
+            timestamp = os.path.getmtime(file_path)
+            formatted_time = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            payroll_files.append((filename, formatted_time))
+
+    return render_template('dashboard.html', payroll_files=payroll_files)

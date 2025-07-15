@@ -1,109 +1,176 @@
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory
-import os
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
+from werkzeug.utils import secure_filename
 from datetime import datetime
-from PyPDF2 import PdfReader, PdfWriter
-from email.message import EmailMessage
-import smtplib
 from dotenv import load_dotenv
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 
-# Load environment variables from .env file
-load_dotenv()
-EMAIL_SENDER = os.getenv('EMAIL_SENDER')
-EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
-EMAIL_RECIPIENTS = os.getenv('EMAIL_RECIPIENTS', '').split(',')
-
+# Initialize Flask app
 app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'  # Replace with a secure random key
 
-# Upload folder setup
-UPLOAD_FOLDER = os.path.join(app.root_path, 'uploads')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Load email credentials from .env
+load_dotenv()
+EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+
+# Configuration
+UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
+ALLOWED_EXTENSIONS = {'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Dashboard route
-@app.route('/')
-def dashboard():
-    files = []
-    for filename in os.listdir(UPLOAD_FOLDER):
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        if os.path.isfile(filepath):
-            timestamp = datetime.fromtimestamp(os.path.getmtime(filepath)).strftime('%Y-%m-%d %H:%M:%S')
-            files.append({'filename': filename, 'timestamp': timestamp})
-    files.sort(key=lambda x: x['timestamp'], reverse=True)
-    return render_template("index.html", files=files)
+# Ensure upload folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Upload route with PDF encryption and email
-@app.route('/upload', methods=['GET', 'POST'])
-def upload_file():
+# ------------------- Helpers -------------------
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def send_payroll_email():
+    admin_emails = [
+        "earlnimley@gmail.com",
+        "coleaudreytonia@gmail.com",
+        "nimleye0403@students.bowiestate.edu"
+    ]
+
+    msg = MIMEMultipart()
+    msg["From"] = EMAIL_ADDRESS
+    msg["To"] = ", ".join(admin_emails)
+    msg["Subject"] = "Weekly Payroll Report"
+
+    msg.attach(MIMEText("Hello Admin,\n\nPlease find attached the encrypted payroll report.\n\nRegards,\nPayroll System", "plain"))
+
+    filepath = os.path.join("uploads", "encrypted_payroll_report.pdf")
+    with open(filepath, "rb") as f:
+        part = MIMEApplication(f.read(), _subtype="pdf")
+        part.add_header("Content-Disposition", "attachment", filename="encrypted_payroll_report.pdf")
+        msg.attach(part)
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_ADDRESS, admin_emails, msg.as_string())
+
+# ------------------- Routes -------------------
+
+@app.route('/')
+def home():
+    return redirect('/add_employee')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
     if request.method == 'POST':
-        file = request.files['file']
+        username = request.form.get('username')
         password = request.form.get('password')
 
-        if file and file.filename.endswith('.pdf'):
-            timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-            filename = f"{os.path.splitext(file.filename)[0]}_{timestamp}.pdf"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-            # Save unencrypted file temporarily
-            temp_path = os.path.join(app.config['UPLOAD_FOLDER'], "temp_unencrypted.pdf")
-            file.save(temp_path)
-
-            # Encrypt PDF
-            reader = PdfReader(temp_path)
-            writer = PdfWriter()
-            for page in reader.pages:
-                writer.add_page(page)
-            if password:
-                writer.encrypt(password)
-
-            with open(filepath, 'wb') as f:
-                writer.write(f)
-
-            os.remove(temp_path)
-
-            # Send email with attachment
-            try:
-                msg = EmailMessage()
-                msg['Subject'] = f"Encrypted Payroll Report: {filename}"
-                msg['From'] = EMAIL_SENDER
-                msg['To'] = ', '.join(EMAIL_RECIPIENTS)
-                msg.set_content("The latest encrypted payroll report is attached. Use the upload password to open the file.")
-
-                with open(filepath, 'rb') as f:
-                    file_data = f.read()
-                    msg.add_attachment(file_data, maintype='application', subtype='pdf', filename=filename)
-
-                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                    smtp.login(EMAIL_SENDER, EMAIL_PASSWORD)
-                    smtp.send_message(msg)
-
-                print("✅ Email sent successfully.")
-            except Exception as e:
-                print(f"❌ Email sending failed: {e}")
-
+        if username == 'admin' and password == 'password123':
+            session['logged_in'] = True
+            flash('Login successful.', 'success')
             return redirect(url_for('dashboard'))
         else:
-            return "Only PDF files are allowed.", 400
+            flash('Invalid credentials.', 'danger')
+            return redirect(url_for('login'))
+
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    flash("You have been logged out.", "success")
+    return redirect(url_for('login'))
+
+@app.route('/add_employee', methods=['GET', 'POST'])
+def add_employee():
+    if not session.get('logged_in'):
+        flash("Please log in first.", "danger")
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        try:
+            # You can expand this to save to a DB or file
+            flash('Employee added successfully!', 'success')
+            return redirect('/add_employee')
+        except Exception as e:
+            flash(f'❌ Error: {e}', 'danger')
+            return redirect('/add_employee')
+
+    return render_template('add_employee.html')
+
+@app.route('/upload', methods=['GET', 'POST'])
+def upload_file():
+    if not session.get('logged_in'):
+        flash("Please log in to upload files.", "danger")
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        file = request.files.get('file')
+
+        if not file or file.filename == '':
+            flash('No file selected.', 'danger')
+            return redirect(request.url)
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+            try:
+                send_payroll_email()
+                flash('File uploaded and email sent.', 'success')
+            except Exception as e:
+                flash(f'Upload succeeded, but email failed: {str(e)}', 'warning')
+
+            return redirect('/dashboard')
+
+        flash('Invalid file type.', 'danger')
 
     return render_template("upload.html")
 
-# Download route and logging
-@app.route('/uploads/<filename>')
-def serve_uploaded_file(filename):
-    log_path = os.path.join(app.root_path, 'download_logs.txt')
-    with open(log_path, 'a') as log:
-        log.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {filename} downloaded\n")
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+@app.route('/dashboard')
+def dashboard():
+    if not session.get('logged_in'):
+        flash("Please log in to access the dashboard.", "danger")
+        return redirect(url_for('login'))
 
-# Admin log view
-@app.route('/admin/logs')
+    payroll_files = []
+    for filename in os.listdir(UPLOAD_FOLDER):
+        if filename.endswith('.pdf'):
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            timestamp = os.path.getmtime(file_path)
+            formatted_time = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            payroll_files.append((filename, formatted_time))
+
+    return render_template('dashboard.html', payroll_files=payroll_files)
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    if not session.get('logged_in'):
+        flash("Please log in to download files.", "danger")
+        return redirect(url_for('login'))
+
+    # Log the download
+    log_entry = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {filename} downloaded by admin\n"
+    with open("download_logs.txt", "a") as log_file:
+        log_file.write(log_entry)
+
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+
+@app.route('/logs')
 def view_logs():
-    log_path = os.path.join(app.root_path, 'download_logs.txt')
-    logs = []
-    if os.path.exists(log_path):
-        with open(log_path, 'r') as f:
+    if not session.get('logged_in'):
+        flash("Please log in to view logs.", "danger")
+        return redirect(url_for('login'))
+
+    try:
+        with open("download_logs.txt", "r") as f:
             logs = f.readlines()
+    except FileNotFoundError:
+        logs = ["No logs found."]
+
     return render_template("logs.html", logs=logs)
 
-# Run Flask
+# ------------------- Run -------------------
 if __name__ == '__main__':
     app.run(debug=True)

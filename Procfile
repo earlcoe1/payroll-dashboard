@@ -1,0 +1,1 @@
+web: gunicorn flask_payroll_email_app:app

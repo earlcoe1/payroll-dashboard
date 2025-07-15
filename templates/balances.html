@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Account Balance Checker</title>
+</head>
+<body>
+    <h1>Check Account Balance</h1>
+    <form method="POST">
+        <label for="account">Enter Account Number:</label>
+        <input type="text" name="account" required>
+        <button type="submit">Check</button>
+    </form>
+
+    {% if account %}
+        <h2>Account: {{ account }}</h2>
+        <p>
+            Balance: 
+            {% if balance == "Account not found" %}
+                {{ balance }}
+            {% else %}
+                ${{ "%.2f"|format(balance) }}
+            {% endif %}
+        </p>
+    {% endif %}
+</body>
+</html>
