@@ -1,28 +1,25 @@
-@app.route('/upload', methods=['GET', 'POST'])
-def upload_file():
-    if not session.get('logged_in'):
-        flash("Please log in to upload files.", "danger")
-        return redirect(url_for('login'))
-
-    if request.method == 'POST':
-        file = request.files.get('file')
-
-        if not file or file.filename == '':
-            flash('No file selected.', 'danger')
-            return redirect(request.url)
-
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-
-            try:
-                send_payroll_email()
-                flash('File uploaded and email sent.', 'success')
-            except Exception as e:
-                flash(f'Upload succeeded, but email failed: {str(e)}', 'warning')
-
-            return redirect('/')
-        flash('Invalid file type.', 'danger')
-
-    return render_template("upload.html")
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Payroll File</title>
+</head>
+<body>
+    <h1>Upload Payroll File</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul>
+        {% for category, message in messages %}
+          <li><strong>{{ category.title() }}:</strong> {{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    <form method="POST" enctype="multipart/form-data">
+        <label>Select Payroll File (PDF or Excel):</label><br><br>
+        <input type="file" name="file" required><br><br>
+        <button type="submit">Upload</button>
+    </form>
+    <br>
+    <a href="/dashboard">Back to Dashboard</a>
+</body>
+</html>
