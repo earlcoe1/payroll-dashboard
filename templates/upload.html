@@ -1,25 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Upload Payroll File</title>
+    <title>Upload Payroll</title>
 </head>
 <body>
-    <h1>Upload Payroll File</h1>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <ul>
-        {% for category, message in messages %}
-          <li><strong>{{ category.title() }}:</strong> {{ message }}</li>
-        {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
-    <form method="POST" enctype="multipart/form-data">
-        <label>Select Payroll File (PDF or Excel):</label><br><br>
-        <input type="file" name="file" required><br><br>
-        <button type="submit">Upload</button>
+    <h1>Upload Payroll Report</h1>
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+        <label>Payroll File:</label><br>
+        <input type="file" name="payroll_file" required><br><br>
+        <label>Email Subject:</label><br>
+        <input type="text" name="email_subject" value="Payroll Report"><br><br>
+        <label>Email Body:</label><br>
+        <textarea name="email_body">Please find attached the payroll report.</textarea><br><br>
+        <label>PDF Password (optional):</label><br>
+        <input type="text" name="pdf_password"><br><br>
+        <button type="submit">Upload and Send</button>
     </form>
-    <br>
-    <a href="/dashboard">Back to Dashboard</a>
 </body>
 </html>

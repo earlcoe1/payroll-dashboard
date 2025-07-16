@@ -89,10 +89,11 @@ def dashboard():
     conn.close()
     return render_template('dashboard.html', files=files)
 
-@app.route('/upload', methods=['POST'])
-def upload():
+@app.route('/upload-form', methods=['GET'])
+def upload_form():
     if 'admin' not in session:
         return redirect('/login')
+    return render_template('upload.html')
 
     payroll_file = request.files['payroll_file']
     email_subject = request.form.get('email_subject', 'Payroll Report')
