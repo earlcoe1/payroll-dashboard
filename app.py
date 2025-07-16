@@ -60,15 +60,17 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        admin_user = request.form['username']
-        admin_pass = request.form['password']
-        # You can expand this with real credential checking
-        if admin_user == os.getenv("ADMIN_USERNAME") and admin_pass == os.getenv("ADMIN_PASSWORD"):
-            session['admin'] = admin_user
-            flash('Login successful.', 'success')
-            return redirect('/dashboard')
+        username = request.form['username']
+        password = request.form['password']
+
+        # Hardcoded for now — could be replaced with DB auth
+        if username == 'admin' and password == 'password123':
+            session['admin'] = True
+            flash('Login successful!', 'success')
+            return redirect(url_for('dashboard'))
         else:
             flash('Invalid credentials.', 'danger')
+
     return render_template('login.html')
 
 @app.route('/logout')
@@ -81,6 +83,7 @@ def logout():
 def dashboard():
     if 'admin' not in session:
         return redirect('/login')
+
     conn = get_db_connection()
     files = conn.execute('SELECT * FROM payroll_files ORDER BY uploaded_at DESC').fetchall()
     conn.close()
@@ -102,22 +105,22 @@ def upload():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], timestamped_filename)
         payroll_file.save(file_path)
 
-        # Encrypt if PDF and password provided
+        # Encrypt PDF if password is provided
         if filename.lower().endswith('.pdf') and pdf_password:
             encrypted_path = os.path.join(app.config['UPLOAD_FOLDER'], "encrypted_" + timestamped_filename)
             encrypt_pdf(file_path, encrypted_path, pdf_password)
             os.remove(file_path)
             os.rename(encrypted_path, file_path)
 
-        # Save to DB
+        # Save file info to DB
         conn = get_db_connection()
         conn.execute('INSERT INTO payroll_files (filename, uploaded_at) VALUES (?, ?)',
                      (timestamped_filename, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
         conn.commit()
         conn.close()
 
-        # Email it
-        recipients = [os.getenv("ADMIN_EMAIL")]  # Add more if needed
+        # Email file to admin
+        recipients = [os.getenv("ADMIN_EMAIL")]
         send_email_with_attachment(
             subject=email_subject,
             body=email_body,
@@ -137,6 +140,6 @@ def download(filename):
         return redirect('/login')
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
 
-# ---------------------- Main Entry ----------------------
+# ---------------------- Run App ----------------------
 if __name__ == '__main__':
     app.run(debug=True)
