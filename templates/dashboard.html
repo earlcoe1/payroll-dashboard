@@ -1,34 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dashboard</title>
+    <title>Payroll Dashboard</title>
 </head>
-
-<h1>Uploaded Payroll Reports</h1>
-
-<p><a href="{{ url_for('upload') }}">Upload Payroll Report</a></p>
 <body>
-    <h1>Uploaded Payroll Reports</h1>
-
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <ul>
-                {% for category, message in messages %}
-                    <li style="color: {% if category == 'danger' %}red{% else %}green{% endif %};">
-                        {{ message }}
-                    </li>
-                {% endfor %}
-            </ul>
-        {% endif %}
+      {% if messages %}
+        <ul>
+        {% for category, message in messages %}
+          <li style="color: {% if category == 'success' %}green{% else %}red{% endif %};">{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
     {% endwith %}
 
-    <ul>
-        {% for filename, timestamp in payroll_files %}
-            <li>
-                {{ filename }} (uploaded at {{ timestamp }})
-                - <a href="{{ url_for('download_file', filename=filename) }}">Download</a>
-            </li>
-        {% endfor %}
-    </ul>
+    <h1>Uploaded Payroll Reports</h1>
+    <a href="/upload">Upload Payroll Report</a>
+
+    {% if files %}
+        <ul>
+            {% for file in files %}
+                <li>
+                    {{ file.filename }} — {{ file.uploaded_at }}
+                    [<a href="{{ url_for('download', filename=file.filename) }}">Download</a>]
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No payroll files uploaded yet.</p>
+    {% endif %}
 </body>
 </html>
